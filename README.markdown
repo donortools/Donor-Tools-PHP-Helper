@@ -5,8 +5,8 @@ Special thanks to [Andrew Buzzell](http://netgrowth.ca/) for sharing this PHP he
 
 [Donor Tools](http://www.donortools.com) is a web-based donor management system for charities and nonprofits. We provide a robust REST API for customers to interact with their data through external web services. 
 
-Documentation
--------------
+API Documentation
+-----------------
 Please read our API documentation in our [User Guide](http://donortools.com/userguide/api) and on our [support forum](http://support.donortools.com/forums/47417/entries)
 
 Sample Rails App
