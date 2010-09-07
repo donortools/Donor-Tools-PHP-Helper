@@ -17,3 +17,4 @@ License
 -------
 Donor Tools API is a beta product and is provided on a best-effort basis. Use of the Donor Tools API is subject to the API License Agreement: www.donortools.com/about/api_license
 
+The "Donor Tools PHP Helper" is provided as-is and comes with no warranty whatsoever. 
