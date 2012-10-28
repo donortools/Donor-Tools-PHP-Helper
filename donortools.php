@@ -26,52 +26,57 @@ class DonorTools {
 	 * 
 	 * $config can be modified as needed to match your application and/or
 	 * framework.
+	 * 
+	 * @return $new_donations array of new donations
+	 * 				$new_donation->donation_id
+	 * 				$new_donation->donation (in USD, whole dollars)
+	 * 				$new_donation->created_time (timestamp)
+	 * 				$new_donation->persona_id
+	 * 				$new_donation->first_name
+	 * 				$new_donation->last_name
+	 * 				$new_donation->company
+	 * 				$new_donation->email
+	 * 				$new_donation->address
+	 * 				$new_donation->city
+	 * 				$new_donation->region_text
+	 * 				$new_donation->postal_code
 	 */
 	static function import_donations($config)
 	{
 		// load people and donations from the API
-		$donations 	= self::get_xml_from_api('donations.xml');
-		$personas 	= self::get_xml_from_api('personas.xml');
+		$donations 	= self::get_xml_from_api($config, 'donations.xml');
+		$personas 	= self::get_xml_from_api($config, 'personas.xml');
 		
-		$import_count = 0;
-		// iterate through them, saving any we don't already have
+		$new_donations = array();
+		
 		foreach ($donations->donation as $donation)
 		{
 			$donation_id = $donation->{'id'};
-			$existing_donation = ORM::factory('Donation')->where('dt_donation_id', $donation_id)->find();
-			if (!$existing_donation->loaded)
+			$new_donation = new stdClass;
+
+			$new_donation->donation_id = $donation_id;
+			$new_donation->donation = ($donation->{'amount-in-cents'}/100);
+			$new_donation->created_time = strtotime($donation->{'received-on'});
+			
+			// access the corresponding persona node
+			$person = $personas->xpath("persona/id['$donation_id']/parent::*"); 
+			if ($person) 
 			{
-				$import_count++;
-				$new_donation = ORM::factory('Donation');
-
-				// if its in donortools, and NOT in our db, then it was entered offline (ie was not an online donation)			
-				$new_donation->type 				= 'offline'; 
-				$new_donation->status 				= 'confirmed';
-				$new_donation->dt_donation_id 	= $donation_id;
-				$new_donation->donation 			= ($donation->{'amount-in-cents'}/100);
-				$new_donation->created_time		= strtotime($donation->{'received-on'});
-				
-				// access the corresponding persona node
-				$person = $personas->xpath("persona/id['$donation_id']/parent::*"); 
-				if (!$person) 
-				{
-					Kohana::log('error', "unable to retrieve person for donation: $donation_id");
-				}
-
-				$new_donation->dt_persona_id 	= $person[0]->id;
-				$new_donation->first_name 		= (string) $person[0]->names->name->{'first-name'};
-				$new_donation->last_name 		= (string) $person[0]->names->name->{'last-name'};
-				$new_donation->company 			= (string) $person[0]->{'company-name'};
-				$new_donation->email 				= (string) $person[0]->{'email-addresses'}->{'email-address'}->{'email-address'};
-				$new_donation->city 					= (string) $person[0]->{'addresses'}->{'address'}->{'city'};
-				$new_donation->region_text 		= (string) $person[0]->{'addresses'}->{'address'}->{'state'};
-				$new_donation->address 			= (string) $person[0]->{'addresses'}->{'address'}->{'street-address'};
-				$new_donation->postal_code 		= (string) $person[0]->{'addresses'}->{'address'}->{'postal-code'};
-				
-				$new_donation->save();
+				$new_donation->persona_id = $person[0]->id;
+				$new_donation->first_name = (string) $person[0]->names->name->{'first-name'};
+				$new_donation->last_name = (string) $person[0]->names->name->{'last-name'};
+				$new_donation->company = (string) $person[0]->{'company-name'};
+				$new_donation->email = (string) $person[0]->{'email-addresses'}->{'email-address'}->{'email-address'};
+				$new_donation->city = (string) $person[0]->{'addresses'}->{'address'}->{'city'};
+				$new_donation->region_text = (string) $person[0]->{'addresses'}->{'address'}->{'state'};
+				$new_donation->address = (string) $person[0]->{'addresses'}->{'address'}->{'street-address'};
+				$new_donation->postal_code = (string) $person[0]->{'addresses'}->{'address'}->{'postal-code'};
 			}
+		
+			$new_donations[] = $new_donation;
 		}
-		return $import_count;
+		
+		return $new_donations;
 	}
 	
 	/**
