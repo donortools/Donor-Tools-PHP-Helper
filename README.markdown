@@ -1,7 +1,7 @@
 Donor Tools API helper for PHP
 ===============================
 
-Special thanks to [Andrew Buzzell](http://netgrowth.ca/) for sharing this PHP helper with the world. 
+Special thanks to [Andrew Buzzell](http://netgrowth.ca/) and [Brett Meyer](http://3riverdev.com/) for sharing this PHP helper with the world. 
 
 [Donor Tools](http://www.donortools.com) is a web-based donor management system for charities and nonprofits. We provide a robust REST API for customers to interact with their data through external web services. 
 
