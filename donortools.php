@@ -1,11 +1,10 @@
-<?php defined('SYSPATH') or die('No direct script access.');
+<?php
+
 /**
  * Helper to interact with the donortools.com API
  * 
- * In our application, we have donations that are made online, and others entered offline. 
- * We need to keep both the db on the webserver and the donortools db in synch
- * 
  * import_donations grabs all the offline ones that aren't in our db
+ * 
  * save_donation saves a donation made on the site to donortools
  * 
  * @author Andrew Buzzell buzz@netgrowth.ca
@@ -15,11 +14,20 @@
 class DonorTools {
 
 	/**
-	 * Grab all the donations for the last 30 days (that is the default from donor tools) and throw them in our db if we don't have them
+	 * Grab all the donations for the last 30 days (the default from donor
+	 * tools), parse the XML, and return a usable object.
 	 * 
+	 * @param $config
+	 * 				$config['donortools_endpoint']
+	 * 				$config['donortools_fund_id']
+	 * 				$config['donortools_source_id']
+	 * 				$config['donortools_username']
+	 * 				$config['donortools_password']
 	 * 
+	 * $config can be modified as needed to match your application and/or
+	 * framework.
 	 */
-	static function import_donations()
+	static function import_donations($config)
 	{
 		// load people and donations from the API
 		$donations 	= self::get_xml_from_api('donations.xml');
@@ -67,8 +75,29 @@ class DonorTools {
 	}
 	
 	/**
-	 * Save a donation made online to donortools
-	 *
+	 * Save a donation made online to DonorTools.
+	 * 
+	 * @param $config
+	 * 				$config['donortools_endpoint']
+	 * 				$config['donortools_fund_id']
+	 * 				$config['donortools_source_id']
+	 * 				$config['donortools_username']
+	 * 				$config['donortools_password']
+	 * @param $donation_object
+	 * 				$donation_object->first_name
+	 * 				$donation_object->last_name
+	 * 				$donation_object->city
+	 * 				$donation_object->address
+	 * 				$donation_object->region_text
+	 * 				$donation_object->postal_code
+	 * 				$donation_object->email
+	 * 				$donation_object->donation (in USD, whole dollars)
+	 * @param $persona_id (optional)
+	 * 				If you store persona IDs in your app's db, pass it in here.
+	 * 				If not given, creates a new persona.
+	 * 
+	 * $config & $donation_object can be modified as needed to match
+	 * your application and/or framework.
 	 */
 	static function save_donation($config, $donation_object, $persona_id=FALSE)
 	{
@@ -93,7 +122,7 @@ class DonorTools {
 			$person->{'email-addresses'}->addChild('email-address');
 			$person->{'email-addresses'}->{'email-address'}->addChild('email-address', $donation_object->email);
 	
-			$response = get_xml_from_api($config, 'personas.xml', $person->asXML());
+			$response = self::get_xml_from_api($config, 'personas.xml', $person->asXML());
 			$persona_id = ((string) $response[0]->{'id'});
 		}
 	
@@ -116,20 +145,14 @@ class DonorTools {
 		$donation->addChild('source-id', $config['donortools_source_id']);
 		$donation->{'source-id'}->addAttribute('type', 'integer');
 	
-		$response = get_xml_from_api($config, 'donations.xml', $donation->asXML());
+		$response = self::get_xml_from_api($config, 'donations.xml', $donation->asXML());
 		$donation_id = ((string) $response[0]->{'id'});
 	
 		return array ('persona_id' => $persona_id, 'donation_id' => $donation_id);
 	}
 	
 	
-	/**
-	 * Communicate with the donortools API. Expects a config file to specify user/pass and endpoint URL
-	 *
-	 * Executes a GET if no $post_xml is provided, otherwise posts
-	 * 
-	 */
-	static function get_xml_from_api($config, $target, $post_xml = FALSE)
+	private static function get_xml_from_api($config, $target, $post_xml = FALSE)
 	{
 		$target_url = $config['donortools_endpoint'].'/'.$target;
 	
@@ -159,3 +182,5 @@ class DonorTools {
 		return $xml;
 	}
 }
+
+?>
