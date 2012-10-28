@@ -19,7 +19,7 @@ class DonorTools {
 	 * 
 	 * 
 	 */
-	function import_donations()
+	static function import_donations()
 	{
 		// load people and donations from the API
 		$donations 	= self::get_xml_from_api('donations.xml');
@@ -70,7 +70,7 @@ class DonorTools {
 	 * Save a donation made online to donortools
 	 *
 	 */
-	function save_donation($config, $donation_object, $persona_id=FALSE)
+	static function save_donation($config, $donation_object, $persona_id=FALSE)
 	{
 		if (!$persona_id) {
 			$person = new SimpleXMLElement('<persona></persona>');
@@ -129,7 +129,7 @@ class DonorTools {
 	 * Executes a GET if no $post_xml is provided, otherwise posts
 	 * 
 	 */
-	function get_xml_from_api($config, $target, $post_xml = FALSE)
+	static function get_xml_from_api($config, $target, $post_xml = FALSE)
 	{
 		$target_url = $config['donortools_endpoint'].'/'.$target;
 	
