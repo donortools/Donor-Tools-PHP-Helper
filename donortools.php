@@ -1,7 +1,6 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 /**
  * Helper to interact with the donortools.com API
- * Written for Kohana framework, but easily portable
  * 
  * In our application, we have donations that are made online, and others entered offline. 
  * We need to keep both the db on the webserver and the donortools db in synch
@@ -10,10 +9,10 @@
  * save_donation saves a donation made on the site to donortools
  * 
  * @author Andrew Buzzell buzz@netgrowth.ca
- *
+ * @author Brett Meyer brett@3riverdev.com
  */
 
-class donortools {
+class DonorTools {
 
 	/**
 	 * Grab all the donations for the last 30 days (that is the default from donor tools) and throw them in our db if we don't have them
@@ -71,53 +70,55 @@ class donortools {
 	 * Save a donation made online to donortools
 	 *
 	 */
-	function save_donation($donation_object)
+	function save_donation($config, $donation_object, $persona_id=FALSE)
 	{
-		$person = new SimpleXMLElement("<persona></persona>");
-		$person->addChild('names-attributes');
-		$person->{'names-attributes'}->addAttribute('type', 'array');
-		$person->{'names-attributes'}->addChild('name-attribute');
-		$person->{'names-attributes'}->{'name-attribute'}->addChild('first-name', $donation_object->first_name);
-		$person->{'names-attributes'}->{'name-attribute'}->addChild('last-name', $donation_object->last_name);
-		
-		$person->addChild('addresses-attributes');
-		$person->{'addresses-attributes'}->addAttribute('type', 'array');
-		$person->{'addresses-attributes'}->addChild('addresses-attribute');
-		$person->{'addresses-attributes'}->{'addresses-attribute'}->addChild('city', $donation_object->city);
-		$person->{'addresses-attributes'}->{'addresses-attribute'}->addChild('street-address', $donation_object->address);
-		$person->{'addresses-attributes'}->{'addresses-attribute'}->addChild('state', $donation_object->region_text);
-		$person->{'addresses-attributes'}->{'addresses-attribute'}->addChild('postal_code', $donation_object->postal_code);
-		
-		$person->addChild('email-addresses-attributes');
-		$person->{'email-addresses-attributes'}->addAttribute('type', 'array');
-		$person->{'email-addresses-attributes'}->addChild('email-addresses-attribute');
-		$person->{'email-addresses-attributes'}->{'email-addresses-attribute'}->addChild('email-address', $donation_object->email);
-		
-		$response = self::get_xml_from_api('personas.xml', $person->asXML());
-		$persona_id = ((string) $response[0]->{'id'});
-		
+		if (!$persona_id) {
+			$person = new SimpleXMLElement('<persona></persona>');
+			$person->addChild('names');
+			$person->{'names'}->addAttribute('type', 'array');
+			$person->{'names'}->addChild('name');
+			$person->{'names'}->{'name'}->addChild('first-name', $donation_object->first_name);
+			$person->{'names'}->{'name'}->addChild('last-name', $donation_object->last_name);
+	
+			$person->addChild('addresses');
+			$person->{'addresses'}->addAttribute('type', 'array');
+			$person->{'addresses'}->addChild('address');
+			$person->{'addresses'}->{'address'}->addChild('city', $donation_object->city);
+			$person->{'addresses'}->{'address'}->addChild('street-address', $donation_object->address);
+			$person->{'addresses'}->{'address'}->addChild('state', $donation_object->region_text);
+			$person->{'addresses'}->{'address'}->addChild('postal-code', $donation_object->postal_code);
+	
+			$person->addChild('email-addresses');
+			$person->{'email-addresses'}->addAttribute('type', 'array');
+			$person->{'email-addresses'}->addChild('email-address');
+			$person->{'email-addresses'}->{'email-address'}->addChild('email-address', $donation_object->email);
+	
+			$response = get_xml_from_api($config, 'personas.xml', $person->asXML());
+			$persona_id = ((string) $response[0]->{'id'});
+		}
+	
 		$donation = new SimpleXMLElement("<donation></donation>");
 		$donation->addChild('donation-type-id', 14);
 		$donation->{'donation-type-id'}->addAttribute('type', 'integer');
 		$donation->addChild('persona-id', $persona_id);
 		$donation->{'persona-id'}->addAttribute('type', 'integer');
-		
-		$donation->addChild('splits-attributes');
-		$donation->{'splits-attributes'}->addAttribute('type', 'array');
-		$donation->{'splits-attributes'}->addChild('splits-attribute');
-		
-		$donation->{'splits-attributes'}->{'splits-attribute'}->addChild('amount-in-cents', ($donation_object->donation * 100));
-		$donation->{'splits-attributes'}->{'splits-attribute'}->{'amount-in-cents'}->addAttribute('type', 'integer');
-		
-		$donation->{'splits-attributes'}->{'splits-attribute'}->addChild('fund-id', 13860);
-		$donation->{'splits-attributes'}->{'splits-attribute'}->{'fund-id'}->addAttribute('type', 'integer');
-		
-		$donation->addChild('source-id', 24165);
+	
+		$donation->addChild('splits');
+		$donation->{'splits'}->addAttribute('type', 'array');
+		$donation->{'splits'}->addChild('split');
+	
+		$donation->{'splits'}->{'split'}->addChild('amount-in-cents', ($donation_object->donation * 100));
+		$donation->{'splits'}->{'split'}->{'amount-in-cents'}->addAttribute('type', 'integer');
+	
+		$donation->{'splits'}->{'split'}->addChild('fund-id', $config['donortools_fund_id']);
+		$donation->{'splits'}->{'split'}->{'fund-id'}->addAttribute('type', 'integer');
+	
+		$donation->addChild('source-id', $config['donortools_source_id']);
 		$donation->{'source-id'}->addAttribute('type', 'integer');
-		
-		$response = self::get_xml_from_api('donations.xml', $donation->asXML());
+	
+		$response = get_xml_from_api($config, 'donations.xml', $donation->asXML());
 		$donation_id = ((string) $response[0]->{'id'});
-		
+	
 		return array ('persona_id' => $persona_id, 'donation_id' => $donation_id);
 	}
 	
@@ -128,33 +129,29 @@ class donortools {
 	 * Executes a GET if no $post_xml is provided, otherwise posts
 	 * 
 	 */
-	function get_xml_from_api($target, $post_xml = FALSE)
+	function get_xml_from_api($config, $target, $post_xml = FALSE)
 	{
-		$target_url = Kohana::config('donortools.endpoint').'/'.$target;
+		$target_url = $config['donortools_endpoint'].'/'.$target;
 	
 		$ch = curl_init ($target_url);
 		
-		if ($post_xml)
-		{
+		if ($post_xml) {
 			curl_setopt($ch, CURLOPT_POST, 1);
-			curl_setopt($ch, CURLOPT_POSTFIELDS, "XML=$post_xml");
-			curl_setopt ($ch, CURLOPT_HTTPHEADER, Array("Content-Type: text/xml"));
+			curl_setopt($ch, CURLOPT_POSTFIELDS, "$post_xml");
+			curl_setopt($ch, CURLOPT_HTTPHEADER, array("Content-Type: text/xml"));
 		}
-
-		curl_setopt($ch, CURLOPT_USERPWD, Kohana::config('donortools.user') . ':' . Kohana::config('donortools.password'));
-		curl_setopt ($ch, CURLOPT_RETURNTRANSFER, true);
-		curl_setopt ($ch, CURLOPT_TIMEOUT, 60); 
-		curl_setopt ($ch, CURLOPT_SSL_VERIFYHOST, 0);
-		curl_setopt ($ch, CURLOPT_SSL_VERIFYPEER, false);
-		curl_setopt ($ch, CURLOPT_HEADER, false);
+	
+		curl_setopt($ch, CURLOPT_USERPWD, $config['donortools_username'] . ':' . $config['donortools_password']);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+		curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+		curl_setopt($ch, CURLOPT_HEADER, false);
 		$response = curl_exec ($ch);
 		
-		if (curl_errno($ch) > 0)
-		{
-			Kohana::log('error', "unable to curl to api for donation: $donation_id");
-		} 
-		else 
-		{
+		if (curl_errno($ch) > 0) {
+			echo "unable to curl to api";
+		} else  {
 			curl_close($ch);
 		}
 		
