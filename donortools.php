@@ -51,7 +51,7 @@ class DonorTools {
 		
 		foreach ($donations->donation as $donation)
 		{
-			$donation_id = $donation->{'id'};
+			$donation_id = (string) $donation->{'id'};
 			$new_donation = new stdClass;
 
 			$new_donation->donation_id = $donation_id;
@@ -62,7 +62,7 @@ class DonorTools {
 			$person = $personas->xpath("persona/id['$donation_id']/parent::*"); 
 			if ($person) 
 			{
-				$new_donation->persona_id = $person[0]->id;
+				$new_donation->persona_id = (string) $person[0]->id;
 				$new_donation->first_name = (string) $person[0]->names->name->{'first-name'};
 				$new_donation->last_name = (string) $person[0]->names->name->{'last-name'};
 				$new_donation->company = (string) $person[0]->{'company-name'};
